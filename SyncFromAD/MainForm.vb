@@ -52,7 +52,7 @@ Public Class MainForm
 
         For i = 0 To image_sizes.Length - 1
             Try
-
+                ' TDOD: Resize the images to dimensions given by image_sizes(i)
                 ImageName = String.Format("Image{0}.jpg", image_sizes(i))
                 ImageFileName = IO.Path.Combine(ImageFolder, ImageName)
                 UserImage.Save(ImageFileName)
@@ -80,25 +80,26 @@ Public Class MainForm
 
 
     Private Sub GetUserInfos(imageType As ProfileImageType)
+        ' using the current user principal to get the sid and determine the user within the active directory
+
+        Dim ADSUser As System.DirectoryServices.AccountManagement.UserPrincipal = System.DirectoryServices.AccountManagement.UserPrincipal.Current
+        Dim ADSUserEntry As DirectoryEntry = New System.DirectoryServices.DirectoryEntry("LDAP://" + ADSUser.DistinguishedName)
+
+        ' Account images are stored in subfolder "AccountPictures". Each user has a subfolder there named by the user sid
         Dim folder As String = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)
-        Sid = DirectCast(DirectCast(My.User.CurrentPrincipal, System.Security.Principal.WindowsPrincipal).Identity, WindowsIdentity).User.ToString
+        Sid = ADSUser.Sid.ToString
         ImageFolder = IO.Path.Combine(folder, "AccountPictures", Sid)
-        Dim ADSSearcher As DirectorySearcher = New DirectorySearcher()
-        ADSSearcher.Filter = String.Format("(&(objectClass=user) (objectSid={0}))", Sid)
-        Dim result As SearchResult = ADSSearcher.FindOne()
-        If Not result Is Nothing Then
-            Dim user As DirectoryEntry = New DirectoryEntry(result.Path)
-            Dim photo As Byte() = Nothing
-            Select Case imageType
-                Case ProfileImageType.Photo
-                    photo = DirectCast(user.Properties("jpegPhoto").Value, Byte())
-                Case ProfileImageType.ThumbNail
-                    photo = DirectCast(user.Properties("thumbnailPhoto").Value, Byte())
-            End Select
-            If Not photo Is Nothing Then
-                Dim ms As MemoryStream = New MemoryStream(photo)
-                UserImage = Bitmap.FromStream(ms)
-            End If
+
+        Dim ADSImage As Byte() = Nothing
+        Select Case imageType
+            Case ProfileImageType.Photo
+                ADSImage = DirectCast(ADSUserEntry.Properties("jpegPhoto").Value, Byte())
+            Case ProfileImageType.ThumbNail
+                ADSImage = DirectCast(ADSUserEntry.Properties("thumbnailPhoto").Value, Byte())
+        End Select
+        If Not ADSImage Is Nothing Then
+            Dim ms As MemoryStream = New MemoryStream(ADSImage)
+            UserImage = Bitmap.FromStream(ms)
         End If
     End Sub
 
