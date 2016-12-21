@@ -9,6 +9,8 @@ Enum ProfileImageType
 End Enum
 
 
+
+' TODO: add some mor comments
 Public Class MainForm
 	Private ImageFolder As String
 	Private Sid As String
@@ -37,27 +39,30 @@ Public Class MainForm
 		Dim RegKeyPath As String = String.Format("SOFTWARE\Microsoft\Windows\CurrentVersion\AccountPicture\Users\{0}", Sid)
 		Dim RegKey As Microsoft.Win32.RegistryKey
 		Dim RegValueName As String
-		For i = 0 To image_sizes.Length - 1
-			Try
+        Dim RK As Microsoft.Win32.RegistryKey
 
-				ImageName = String.Format("Image{0}.jpg", image_sizes(i))
-				ImageFileName = IO.Path.Combine(ImageFolder, ImageName)
-				UserImage.Save(ImageFileName)
-				Dim RK As Microsoft.Win32.RegistryKey
-				If Environment.Is64BitOperatingSystem Then
-					RK = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry64)
-				Else
-					RK = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry32)
-				End If
+        ' On a x64 windows we must ensure to access the full registry, even when this program is compiled on x86 
+        If Environment.Is64BitOperatingSystem Then
+            RK = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry64)
+        Else
+            RK = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry32)
+        End If
 
-				RegKey = RK.OpenSubKey(RegKeyPath, True)
-				RegValueName = String.Format("Image{0}", image_sizes(i))
-				RegKey.SetValue(RegValueName, ImageFileName)
-			Catch ex As Exception
-				'do nothing
-			End Try
-		Next
-	End Sub
+        RegKey = RK.OpenSubKey(RegKeyPath, True)
+
+        For i = 0 To image_sizes.Length - 1
+            Try
+
+                ImageName = String.Format("Image{0}.jpg", image_sizes(i))
+                ImageFileName = IO.Path.Combine(ImageFolder, ImageName)
+                UserImage.Save(ImageFileName)
+                RegValueName = String.Format("Image{0}", image_sizes(i))
+                RegKey.SetValue(RegValueName, ImageFileName)
+            Catch ex As Exception
+                ' TODO: report error to eventlog
+            End Try
+        Next
+    End Sub
 
 	Private Sub WriteUserTile()
 		Dim ImageName As String
@@ -98,27 +103,27 @@ Public Class MainForm
     End Sub
 
 
-    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles Me.Load
-		Try
+    Private Sub MainForm_Load(sender As Object, e As EventArgs) Handles Me.Load
+        Try
             GetUserInfos(ProfileImageType.ThumbNail)
             If Not UserImage Is Nothing Then
-				If (Environment.OSVersion.Version.Major > 6) Or ((Environment.OSVersion.Version.Major = 6) And (Environment.OSVersion.Version.Minor > 1)) Then
-					' W8 or newer
-					WriteFilesAndRegistry()
-				Else
-					WriteUserTile()
-				End If
-			End If
-		Catch ex As Exception
+                If (Environment.OSVersion.Version.Major > 6) Or ((Environment.OSVersion.Version.Major = 6) And (Environment.OSVersion.Version.Minor > 1)) Then
+                    ' W8 or newer
+                    WriteFilesAndRegistry()
+                Else
+                    WriteUserTile()
+                End If
+            End If
+        Catch ex As Exception
             ' TODO: report error to eventlog
         End Try
         Close()
-	End Sub
+    End Sub
 
 
 
 
-	<System.Runtime.InteropServices.DllImport("shell32.dll", EntryPoint:="#262", CharSet:=Runtime.InteropServices.CharSet.Unicode, PreserveSig:=False)>
+    <System.Runtime.InteropServices.DllImport("shell32.dll", EntryPoint:="#262", CharSet:=Runtime.InteropServices.CharSet.Unicode, PreserveSig:=False)>
 	Shared Sub SetUserTile(ByVal strUserName As String, ByVal intWhatever As Integer, ByVal strPicPath As String)
 	End Sub
 
